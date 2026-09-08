@@ -78,6 +78,18 @@ export default {
       } catch (error) { return json({ ok: false, error: error.message }, 401, corsHeaders); }
     }
 
+    if (url.pathname === "/api/tiktok/creator-info" && request.method === "GET") {
+      try {
+        const token = await getActiveToken(env);
+        const response = await fetch(`${TIKTOK_API}/post/publish/creator_info/query/`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token.access_token}`, "Content-Type": "application/json; charset=UTF-8" },
+          body: JSON.stringify({}),
+        });
+        return proxyJson(response, corsHeaders);
+      } catch (error) { return json({ ok: false, error: error.message }, 401, corsHeaders); }
+    }
+
     return json({ ok: false, error: "Not found" }, 404, corsHeaders);
   },
 };
