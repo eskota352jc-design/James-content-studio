@@ -48,8 +48,9 @@ export default {
       const tokenData = await tokenRequest(new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, client_secret: env.TIKTOK_CLIENT_SECRET, code, grant_type: "authorization_code", redirect_uri: REDIRECT_URI }));
       if (!tokenData.ok) return json(tokenData.body, tokenData.status, corsHeaders);
       await storeTokens(env, tokenData.body);
-      const headers = { ...corsHeaders, "Set-Cookie": "tiktok_oauth_state=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax" };
-      return json({ ok: true, status: "connected_and_stored", connected: true, scope: tokenData.body.scope, message: "TikTok authorization succeeded. Tokens are stored server-side and refresh automatically when needed." }, 200, headers);
+      const headers = new Headers({ Location: "https://eskota352jc-design.github.io/James-content-studio/studio.html?connected=1" });
+      headers.append("Set-Cookie", "tiktok_oauth_state=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax");
+      return new Response(null, { status: 302, headers });
     }
 
     if (url.pathname === "/oauth/status") {
