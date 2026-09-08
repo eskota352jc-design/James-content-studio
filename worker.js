@@ -90,6 +90,56 @@ export default {
       } catch (error) { return json({ ok: false, error: error.message }, 401, corsHeaders); }
     }
 
+    if (url.pathname === "/api/tiktok/post/photo" && request.method === "POST") {
+      try {
+        const token = await getActiveToken(env);
+        const body = await request.json();
+        const photoImages = Array.isArray(body.photo_images) ? body.photo_images : [];
+        if (!body.privacy_level || photoImages.length < 1 || photoImages.length > 35) {
+          return json({ ok: false, error: "privacy_level and 1-35 photo_images are required" }, 400, corsHeaders);
+        }
+        const payload = {
+          post_info: {
+            title: String(body.title || ""),
+            description: String(body.description || ""),
+            disable_comment: body.disable_comment !== false,
+            privacy_level: String(body.privacy_level),
+            auto_add_music: body.auto_add_music === true,
+            brand_content_toggle: body.brand_content_toggle === true,
+            brand_organic_toggle: body.brand_organic_toggle === true
+          },
+          source_info: {
+            source: "PULL_FROM_URL",
+            photo_cover_index: Math.max(0, Math.min(Number(body.photo_cover_index || 0), photoImages.length - 1)),
+            photo_images: photoImages.map(String)
+          },
+          post_mode: "DIRECT_POST",
+          media_type: "PHOTO",
+          is_aigc: body.is_aigc === true
+        };
+        const response = await fetch(`${TIKTOK_API}/post/publish/content/init/`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token.access_token}`, "Content-Type": "application/json; charset=UTF-8" },
+          body: JSON.stringify(payload)
+        });
+        return proxyJson(response, corsHeaders);
+      } catch (error) { return json({ ok: false, error: error.message }, 400, corsHeaders); }
+    }
+
+    if (url.pathname === "/api/tiktok/post/status" && request.method === "POST") {
+      try {
+        const token = await getActiveToken(env);
+        const body = await request.json();
+        if (!body.publish_id) return json({ ok: false, error: "publish_id is required" }, 400, corsHeaders);
+        const response = await fetch(`${TIKTOK_API}/post/publish/status/fetch/`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token.access_token}`, "Content-Type": "application/json; charset=UTF-8" },
+          body: JSON.stringify({ publish_id: String(body.publish_id) })
+        });
+        return proxyJson(response, corsHeaders);
+      } catch (error) { return json({ ok: false, error: error.message }, 400, corsHeaders); }
+    }
+
     return json({ ok: false, error: "Not found" }, 404, corsHeaders);
   },
 };
