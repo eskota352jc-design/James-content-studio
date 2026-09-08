@@ -23,6 +23,7 @@ export default {
         service: "James Content Studio API",
         status: url.pathname === "/health" ? "healthy" : "online",
         tiktok_credentials_configured: Boolean(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET),
+        token_storage_configured: Boolean(env.TIKTOK_TOKENS),
         oauth_redirect_uri: REDIRECT_URI,
       }, 200, corsHeaders);
     }
@@ -66,6 +67,9 @@ export default {
       if (!env.TIKTOK_CLIENT_KEY || !env.TIKTOK_CLIENT_SECRET) {
         return json({ ok: false, error: "TikTok credentials are not configured" }, 500, corsHeaders);
       }
+      if (!env.TIKTOK_TOKENS) {
+        return json({ ok: false, error: "Secure token storage is not configured" }, 500, corsHeaders);
+      }
 
       const body = new URLSearchParams({
         client_key: env.TIKTOK_CLIENT_KEY,
@@ -95,6 +99,21 @@ export default {
         }, tokenResponse.status || 400, corsHeaders);
       }
 
+      const now = Date.now();
+      const storedToken = {
+        open_id: tokenData.open_id,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        scope: tokenData.scope,
+        token_type: tokenData.token_type,
+        access_token_expires_at: now + Number(tokenData.expires_in || 0) * 1000,
+        refresh_token_expires_at: now + Number(tokenData.refresh_expires_in || 0) * 1000,
+        connected_at: now,
+      };
+
+      await env.TIKTOK_TOKENS.put(`tiktok:${tokenData.open_id}`, JSON.stringify(storedToken));
+      await env.TIKTOK_TOKENS.put("tiktok:active_open_id", tokenData.open_id);
+
       const headers = {
         ...corsHeaders,
         "Set-Cookie": "tiktok_oauth_state=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
@@ -102,14 +121,12 @@ export default {
 
       return json({
         ok: true,
-        status: "token_exchange_complete",
+        status: "connected_and_stored",
         connected: true,
-        open_id: tokenData.open_id,
         scope: tokenData.scope,
-        token_type: tokenData.token_type,
         access_token_expires_in: tokenData.expires_in,
         refresh_token_expires_in: tokenData.refresh_expires_in,
-        message: "TikTok authorization succeeded and user tokens were issued securely on the backend. Persistent token storage is the next step.",
+        message: "TikTok authorization succeeded. Tokens are stored server-side and are not exposed to the browser.",
       }, 200, headers);
     }
 
